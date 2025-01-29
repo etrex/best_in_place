@@ -1,3 +1,4 @@
+require 'logger'
 require 'combustion'
 require 'capybara/rspec'
 require 'capybara/poltergeist'

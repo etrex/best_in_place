@@ -13,18 +13,15 @@ gem "combustion"
 gem "sprockets-rails"
 gem "capybara"
 gem "poltergeist"
-gem "sqlite3"
+gem "sqlite3", "~> 1.4"
 gem "appraisal"
 gem "launchy"
+gem "puma"
+gem "phantomjs", require: "phantomjs/poltergeist"
 gem "rails", github: "rails/rails", branch: "6-1-stable"
 
 platforms :mri_21 do
   gem "byebug"
 end
-
-
-gem 'puma'
-gem 'phantomjs', :require => 'phantomjs/poltergeist'
-
 
 gemspec path: "../"

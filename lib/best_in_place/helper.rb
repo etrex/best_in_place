@@ -95,31 +95,51 @@ module BestInPlace
     end
 
     def best_in_place_build_value_for(object, field, opts)
-      klass = object.class
-      if opts[:display_as]
-        BestInPlace::DisplayMethods.add_model_method(klass, field, opts[:display_as])
+      if opts[:collection] && opts[:value].blank? && object.send(field)
+        collection = opts[:collection]
+        value = object.send(field)
+        if collection.is_a?(Hash) || collection.is_a?(Array)
+          value = collection.find {|k,v| k == value}
+          value = value.last if value
+        end
+        value
+      elsif opts[:display_as]
+        BestInPlace::DisplayMethods.add_model_method(object.class, field, opts[:display_as])
         object.send(opts[:display_as]).to_s
-
-      elsif opts[:display_with].try(:is_a?, Proc)
-        BestInPlace::DisplayMethods.add_helper_proc(klass, field, opts[:display_with])
-        opts[:display_with].call(object.send(field))
-
       elsif opts[:display_with]
-        BestInPlace::DisplayMethods.add_helper_method(klass, field, opts[:display_with], opts[:helper_options])
-        if opts[:helper_options]
-          BestInPlace::ViewHelpers.send(opts[:display_with], object.send(field), opts[:helper_options])
+        if opts[:display_with].is_a?(Proc)
+          BestInPlace::DisplayMethods.add_helper_proc(object.class, field, opts[:display_with])
+          opts[:display_with].call(object.send(field))
         else
-          field_value = object.send(field)
-
-          if field_value.blank?
-            ''
+          BestInPlace::DisplayMethods.add_helper_method(object.class, field, opts[:display_with], opts[:helper_options])
+          if opts[:helper_options]
+            BestInPlace::ViewHelpers.send(opts[:display_with], object.send(field), opts[:helper_options])
           else
-            BestInPlace::ViewHelpers.send(opts[:display_with], field_value)
+            field_value = object.send(field)
+            field_value.blank? ? '' : BestInPlace::ViewHelpers.send(opts[:display_with], field_value)
           end
         end
-
+      elsif opts[:helper_options]
+        BestInPlace::DisplayMethods.add_helper_method(object.class, field, opts[:helper], opts[:helper_options])
+        if opts[:helper]
+          BestInPlace::ViewHelpers.send(opts[:helper], object.send(field), opts[:helper_options])
+        else
+          object.send(field)
+        end
+      elsif opts[:helper]
+        BestInPlace::DisplayMethods.add_helper_method(object.class, field, opts[:helper])
+        BestInPlace::ViewHelpers.send(opts[:helper], object.send(field))
       else
-        object.send(field).to_s
+        value = object.send(field)
+        if opts[:as] == :date && value.respond_to?(:to_date)
+          if Rails.version >= "7.0"
+            value.to_date.to_fs
+          else
+            value.to_date.to_s
+          end
+        else
+          value.to_s
+        end
       end
     end
 
@@ -140,16 +160,7 @@ module BestInPlace
     end
 
     def best_in_place_deprecated_options(opts)
-      deprecations = [
-          {from: :path, to: :url},
-          {from: :object_name, to: :param},
-          {from: :type, to: :as},
-          {from: :classes, to: :class},
-          {from: :nil, to: :place_holder},
-          {from: :use_confirm, to: :confirm},
-          {from: :sanitize, to: :raw}
-      ]
-
+      deprecations = [{from: :path, to: :url}, {from: :nil, to: :no_value}]
       deprecations.each do |deprecation|
         if deprecated_option = opts.delete(deprecation[:from])
           opts[deprecation[:from]] = deprecated_option
