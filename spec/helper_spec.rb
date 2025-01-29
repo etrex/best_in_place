@@ -31,7 +31,13 @@ describe BestInPlace::Helper, type: :helper do
     end
 
     it "should show deprecation warning" do
-      expect(ActiveSupport::Deprecation).to receive(:warn).with("[Best_in_place] :path is deprecated in favor of :url ")
+      if Rails.version >= "7.2"
+        deprecator = ActiveSupport::Deprecation.new("7.2", "best_in_place")
+        expect(deprecator).to receive(:warn).with("[Best_in_place] :path is deprecated in favor of :url ")
+        expect(ActiveSupport::Deprecation).to receive(:new).with("7.2", "best_in_place").and_return(deprecator)
+      else
+        expect(ActiveSupport::Deprecation).to receive(:warn).with("[Best_in_place] :path is deprecated in favor of :url ")
+      end
 
       helper.best_in_place @user, :name, path: "http://example.com"
     end

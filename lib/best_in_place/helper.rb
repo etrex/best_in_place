@@ -1,5 +1,7 @@
 module BestInPlace
   module Helper
+    DEPRECATED_OPTS = [{from: :path, to: :url}, {from: :nil, to: :no_value}]
+
     def best_in_place(object, field, opts = {})
       best_in_place_assert_arguments(opts)
       type = opts[:as] || :input
@@ -155,11 +157,15 @@ module BestInPlace
     end
 
     def best_in_place_deprecated_options(opts)
-      deprecations = [{from: :path, to: :url}, {from: :nil, to: :no_value}]
-      deprecations.each do |deprecation|
-        if deprecated_option = opts.delete(deprecation[:from])
-          opts[deprecation[:from]] = deprecated_option
-          ActiveSupport::Deprecation.warn("[Best_in_place] :#{deprecation[:from]} is deprecated in favor of :#{deprecation[:to]} ")
+      return if opts.nil?
+      DEPRECATED_OPTS.each do |deprecation|
+        if opts.has_key?(deprecation[:from])
+          opts[deprecation[:to]] = opts.delete(deprecation[:from])
+          if Rails.version >= "7.2"
+            ActiveSupport::Deprecation.new("7.2", "best_in_place").warn("[Best_in_place] :#{deprecation[:from]} is deprecated in favor of :#{deprecation[:to]} ")
+          else
+            ActiveSupport::Deprecation.warn("[Best_in_place] :#{deprecation[:from]} is deprecated in favor of :#{deprecation[:to]} ")
+          end
         end
       end
     end
