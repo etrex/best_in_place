@@ -1,7 +1,6 @@
 module BestInPlace
   module Helper
     def best_in_place(object, field, opts = {})
-
       best_in_place_assert_arguments(opts)
       type = opts[:as] || :input
       field = field.to_s
@@ -14,12 +13,11 @@ module BestInPlace
       real_object = best_in_place_real_object_for object
 
       display_value = best_in_place_build_value_for(real_object, field, opts)
-
       value = real_object.send(field)
 
-      if opts[:collection] or type == :checkbox
+      if opts[:collection] || type == :checkbox
         collection = opts[:collection]
-        value = value.to_s
+        value = format_value(value)
         collection = best_in_place_default_collection if collection.blank?
         collection = best_in_place_collection_builder(type, collection)
         display_value = collection.flat_map{|a| a[0].to_s == value ? a[1] : nil }.compact[0]
@@ -44,13 +42,13 @@ module BestInPlace
       options[:data]['bip-ok-button-class'] = opts[:ok_button_class].presence
       options[:data]['bip-cancel-button'] = opts[:cancel_button].presence
       options[:data]['bip-cancel-button-class'] = opts[:cancel_button_class].presence
-      options[:data]['bip-original-content'] = html_escape(opts[:value] || value).presence
+      options[:data]['bip-original-content'] = html_escape(opts[:value] || format_value(value)).presence
 
       options[:data]['bip-skip-blur'] = opts.has_key?(:skip_blur) ? opts[:skip_blur].presence : BestInPlace.skip_blur
 
       options[:data]['bip-url'] = url_for(opts[:url] || object)
 
-      if real_object.respond_to?(:new_record?) and real_object.new_record?
+      if real_object.respond_to?(:new_record?) && real_object.new_record?
         options[:data]['bip-new-object'] = true
         # collect name => value map of unsaved attributes to be serialized
         options[:data]['bip-extra-payload'] = Hash[real_object.changes.map { |k,v| [k, v[1]] }]
@@ -58,7 +56,7 @@ module BestInPlace
 
       options[:data]['bip-confirm'] = opts[:confirm].presence
       options[:data]['bip-double-check-message'] = opts[:double_check_message].presence
-      options[:data]['bip-value'] = html_escape(value).presence
+      options[:data]['bip-value'] = html_escape(format_value(value)).presence
 
       if opts[:raw]
         options[:data]['bip-raw'] = 'true'
@@ -105,7 +103,8 @@ module BestInPlace
         value
       elsif opts[:display_as]
         BestInPlace::DisplayMethods.add_model_method(object.class, field, opts[:display_as])
-        object.send(opts[:display_as]).to_s
+        value = object.send(opts[:display_as])
+        format_value(value)
       elsif opts[:display_with]
         if opts[:display_with].is_a?(Proc)
           BestInPlace::DisplayMethods.add_helper_proc(object.class, field, opts[:display_with])
@@ -124,7 +123,7 @@ module BestInPlace
         if opts[:helper]
           BestInPlace::ViewHelpers.send(opts[:helper], object.send(field), opts[:helper_options])
         else
-          object.send(field)
+          format_value(object.send(field))
         end
       elsif opts[:helper]
         BestInPlace::DisplayMethods.add_helper_method(object.class, field, opts[:helper])
@@ -132,13 +131,9 @@ module BestInPlace
       else
         value = object.send(field)
         if opts[:as] == :date && value.respond_to?(:to_date)
-          if Rails.version >= "7.0"
-            value.to_date.to_fs
-          else
-            value.to_date.to_s
-          end
+          format_value(value.to_date)
         else
-          value.to_s
+          format_value(value)
         end
       end
     end
@@ -196,6 +191,19 @@ module BestInPlace
     def best_in_place_default_collection
       {'true' => t(:'best_in_place.yes', default: 'Yes'),
        'false' => t(:'best_in_place.no', default: 'No')}
+    end
+
+    def format_value(value)
+      return '' if value.nil?
+      if Rails.version >= "7.0"
+        if value.respond_to?(:to_fs)
+          value.to_fs
+        else
+          value.to_s
+        end
+      else
+        value.to_s
+      end
     end
   end
 end
